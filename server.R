@@ -6,7 +6,9 @@ library(ggplot2)
 library(dplyr)
 library(emoGG)
 
+#set up the server side
 server <- function(input, output) {
+  #this block converts the Constructors to their color for plotting purposes
   cols <- c("Ferrari" = "red", 
             "Force India" = "pink",
             "Mercedes" = "turquoise",
@@ -25,18 +27,21 @@ server <- function(input, output) {
             "BMW Sauber" = "darkgray"
   )
   
+  #get the driver name from the ui side. format it for input into the scrape
   chauffeur <- reactive({
     a <- tolower(input$driver)
     a <- gsub(" ", "-", a)
     a
   })
  
+  #scrape and build the data table by parsing the XML
    results <- reactive({
     url <- paste0("http://www.statsf1.com/en/",chauffeur(),"/grand-prix.aspx")
     h <- handle(url)
     res <- GET(handle = h)
     resXML <- htmlParse(content(res, as = "text"))
     
+    #The XML isnt great so I need to remove blank rows at the end and header names
     Year<- getNodeSet(resXML, '//*//tr/td[2]') %>% sapply(., xmlValue)
     Year <- Year[Year != ""]
     Year <- Year[-c(1)]
@@ -71,19 +76,23 @@ server <- function(input, output) {
     Race[Race == "ab"] <- "22"
     Note<- getNodeSet(resXML, '//*//tr/td[13]') %>% sapply(., xmlValue)
     Note <- Note[Note != ""]
-    #Note[Note = ""] <- "NA"
-    
+
+    #put it all into a data frame and call it to set the reactive variable
     df <- data.frame(Year,GrandPrix,Team,Num,Constructor,Car,Engine,Type,Tyre,Grid,Race,Note, stringsAsFactors = F)
     df$YR_RACE <- paste0(Year,"_",GrandPrix)
     df
   })
    
+   #pull out any wins
   wins <- reactive({
     x <- results()[which(results()$Race == "1"),]
     x$Race <- as.numeric(x$Race) - 1
     x
   })
   
+  #plot it all
+  #check out geom_emoji!!! It's what makes the trophies:
+  #https://github.com/dill/emoGG
   p <- reactive({
     ggplot(data=results(), aes(x=YR_RACE, y=as.numeric(as.character(Race)), colour=results()$Constructor)) +
       geom_point() +
