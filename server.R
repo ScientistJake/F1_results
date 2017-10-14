@@ -247,7 +247,8 @@ driver_colors <- c(
   "STR" = "grey70",
   "VAN" = "orange",
   "VET" = "red",
-  "WEH" = "cornflowerblue"
+  "WEH" = "cornflowerblue",
+  "GAS" = "blue"
 )
 driver_lines <- c(
   "ALO" = "dashed",
@@ -272,7 +273,8 @@ driver_lines <- c(
   "STR" = "dashed",
   "VAN" = "solid",
   "VET" = "dashed",
-  "WEH" = "solid"
+  "WEH" = "solid",
+  "GAS" = "dashed"
 )
 
 server <- function(input, output, session) {
@@ -496,7 +498,7 @@ output$plot3 <- renderPlot({
   color.palette  <- colorRampPalette(c("#fcf9c2","#bf3975","#3f176d","#000006"))(length(palette.breaks) - 1)
   source('heatmap.2.R')
   heatmap.2(laptimes_matrix,
-            margins = c(5,10),
+            margins = c(3,5),
             col = color.palette,
             breaks = palette.breaks,
             dendrogram = "none",
@@ -504,9 +506,11 @@ output$plot3 <- renderPlot({
             symkey =F,
             Rowv = T,
             Colv = F,
+            srtCol = 0,
+            #sepwidth = c(0.1,0.1),
             scale= c('none'),
             trace = c('none'),
-            xlab = c("Laps"),
+            xlab = c("Lap"),
             ylab = c("Driver"),
             key.ylab = NA,
             key.title = NA,
@@ -517,7 +521,7 @@ output$plot3 <- renderPlot({
             col.main= 'white',
             lmat=rbind(4:3,2:1),
             lhei=c(1,4),
-            lwid=c(1,3.5)
+            lwid=c(0.65,3.5)
   )
 }, bg="transparent")
 session$onSessionEnded(function() {
