@@ -224,33 +224,6 @@ cols <- c(
   "Zakspeed"= "brown4"
 )
 
-driver_colors <- c(
-  "ALO" = "orange",
-  "BOT" = "turquoise",
-  "BUT" = "orange",
-  "DIR" = "grey70",
-  "ERI" = "cornflowerblue",
-  "GIO" = "cornflowerblue",
-  "GRO" = "brown",
-  "HAM"= "turquoise",
-  "HUL"= "yellow",
-  "PAL"= "yellow",
-  "MAG"= "brown",
-  "KVY" = "blue",
-  "HAR" = "blue",
-  "VER" = "darkblue",
-  "MAS" = "grey70",
-  "OCO" = "pink",
-  "PER" = "pink",
-  "RAI" = "red",
-  "RIC" = "darkblue",
-  "SAI" = "blue",
-  "STR" = "grey70",
-  "VAN" = "orange",
-  "VET" = "red",
-  "WEH" = "cornflowerblue",
-  "GAS" = "blue"
-)
 driver_lines <- c(
   "ALO" = "dashed",
   "BOT" = "dashed",
@@ -281,6 +254,7 @@ driver_lines <- c(
 
 server <- function(input, output, session) {
 
+  #query the db to get the basic tables. we use these in various functions below
   con = dbConnect(RSQLite::SQLite(), dbname="ergast.sqlite")
   drivers <- dbGetQuery(con, "SELECT * FROM drivers")
   races <- dbGetQuery(con, "SELECT * FROM races")
@@ -293,6 +267,7 @@ server <- function(input, output, session) {
   #make driver names
   drivers$names = paste0(toupper(drivers$surname),", ",drivers$forename)
   
+  #this gets the current drivers by calling the ergast api.
   Currentdrivers <- fromJSON("http://ergast.com/api/f1/2017/drivers/.json?limit=2500")
   parseCurrdrivers= data.frame(name=character())
   Currdriversresults <- lapply(1:as.numeric(Currentdrivers[[1]][6][1]), function(i){
@@ -320,8 +295,8 @@ server <- function(input, output, session) {
    }
   })
 
-#DriverData <- do.call(rbind, lapply(alldriversresults, data.frame, stringsAsFactors=FALSE))
-
+#this chunk queries the db using the driver as a query term.
+#it first gets the driver id from 'drivers' using the name to subset
 results <- reactive({
   req(input$chauffeur)
   driverID <- drivers[which(drivers$names == input$chauffeur),1]
@@ -337,6 +312,7 @@ results <- reactive({
   results_race
 })
 
+#this filters the data using the slider inputs for the date
 resultsFilter <-  reactive({
   req(results())
   resultsf <- results()
@@ -356,6 +332,8 @@ wins <- reactive({
 #plot it all
 #check out geom_emoji!!! It's what makes the trophies:
 #https://github.com/dill/emoGG
+
+#note there's two plot options, one sets a 22 driver scale for the 2017 which looks nicer, all others use a 30 driver scale
 output$plot1 <- renderPlot({
   req(resultsFilter())
   if (as.numeric(input$showonlycurrent) >0 ){
@@ -405,7 +383,7 @@ output$plot1 <- renderPlot({
                                         face="bold")
             , legend.key = element_rect(fill = "transparent", colour = "transparent")
             ) +
-      scale_colour_manual(values = cols) +
+      scale_colour_manual(values = cols, na.value='grey80') +
       labs(colour='Constructor') +
       ylab("Race Finish") +
       xlab("Grand Prix") +
@@ -414,6 +392,7 @@ output$plot1 <- renderPlot({
   print(p)
 }, bg="transparent")
 
+#this outputs the ordered, filtered dataframe
 output$table1 <- renderTable({
   req(resultsFilter())
   z <- resultsFilter()
@@ -426,6 +405,7 @@ output$table1 <- renderTable({
 ## Race Data
 ##
 
+#this pulls a raced Id using the input_season and input$round specified by the user
 raceId <- reactive({
   req(input$lap_season, input$lap_race)
   races[races$year == input$lap_season & races$round == input$lap_race, ]
@@ -433,12 +413,27 @@ raceId <- reactive({
 
 laptimes_drivers <- reactive({
   req(raceId())
-  #racetrack <- raceId()$raceId
+  
+  #this chunk grabs the laptimes using the raceId from the input season and race
   lapTimes <- dbGetQuery(con, paste0("SELECT * FROM lapTimes where ((raceId = ",paste(as.numeric(raceId()[1,1]),sep=""),"))"))
   laptimes_drivers <- merge(lapTimes,drivers, by.x='driverId',by.y='driverId')
+  
+  #this chunk extracts and binds the constructor to drivers. 
+  #It's used for the color mapping in plot q
+  racedriver_constructor <- levels(as.factor(laptimes_drivers$driverId)) %>%
+    lapply(., function(x){
+      racedriver_constructor <- dbGetQuery(con, paste0("SELECT driverId, constructorId FROM results where ((driverId = ",paste0(as.numeric(x)),")) AND ((raceId = ",paste0(as.numeric(raceId()[1,1])),"))"))
+    }) %>%
+    do.call(rbind,.) %>%
+    left_join(.,constructors)
+  
+  #this combines and returns the laptimes and the constructor
+  laptimes_drivers <- left_join(laptimes_drivers,racedriver_constructor)
   laptimes_drivers
 })
 
+#This chunk is similar to above except it pulls the pit stops.
+#we keep it separate because it's plotted as a dot plot overlaying the position plot in plot q
 laptimes_pits <- reactive({
   pits <- dbGetQuery(con, paste0("SELECT driverId, stop, lap FROM pitStops where ((raceId = ",paste(as.numeric(raceId()[1,1]),sep=""),"))"))
   laptimes_drivers() %>%
@@ -446,23 +441,28 @@ laptimes_pits <- reactive({
     filter(stop>=1)
 })
 
+#Automatically generate the race label for the plots
 output$track_info <- renderText({
   req(raceId())
   raceId()[1,5]
 })
 
+#this is the lap-plot. It's a lineplot with position by driver overlayed with a dotplot of the pits.
+#colors are mapped to the constructor name the values of which are specified as 'cols'
+#the linetype is entered manually, I'd like to make something more automated.
 output$plot2 <- renderPlot({
   req(laptimes_drivers(),laptimes_pits())
-  q <- ggplot(laptimes_drivers(), aes(x=as.numeric(as.character(laptimes_drivers()$lap)),y=as.numeric(as.character(laptimes_drivers()$position)), group=code, colour=code))
-  q + geom_line(aes(linetype=code)) +
-    geom_point(data = laptimes_pits(), aes(x=as.numeric(as.character(laptimes_pits()$lap)), y=as.numeric(as.character(laptimes_pits()$position)), group=code, colour=code, fill=code),shape=21,size=4) +
-    geom_point(data = laptimes_pits(), aes(x=as.numeric(as.character(laptimes_pits()$lap)), y=as.numeric(as.character(laptimes_pits()$position)), group=code, colour=code),shape=utf8ToInt("P"),size=3.5, color='white') +
+  q <- ggplot(laptimes_drivers(), aes(x=as.numeric(as.character(laptimes_drivers()$lap)),y=as.numeric(as.character(laptimes_drivers()$position)),colour=constructorName,group=code,linetype=code, label=code))
+  q + geom_line() +
+    geom_point(data = laptimes_pits(), aes(x=as.numeric(as.character(laptimes_pits()$lap)), y=as.numeric(as.character(laptimes_pits()$position)), fill=constructorName),shape=21,size=4) +
+    geom_point(data = laptimes_pits(), aes(x=as.numeric(as.character(laptimes_pits()$lap)), y=as.numeric(as.character(laptimes_pits()$position))),shape=utf8ToInt("P"),size=3.5, color='white') +
     scale_y_reverse() +
-    scale_linetype_manual(values=driver_lines) +
-    scale_colour_manual(values = driver_colors) +
-    scale_fill_manual(values = driver_colors) +
+    scale_linetype_manual(name="Driver", values=driver_lines, na.value='solid') +
+    scale_colour_manual(name="Driver", values = cols, na.value='grey80') +
+    scale_fill_manual(name="Driver", values = cols, na.value='grey80') +
     ylab("Position") +
     xlab("Lap") +
+    geom_dl(aes(label = code), method = list(dl.combine("last.points"))) +
     theme(axis.text.x = element_text(color = "white")
           , axis.text.y = element_text(color = "white")
           , axis.ticks.x = element_line(color = "white", size = 1)
@@ -473,16 +473,12 @@ output$plot2 <- renderPlot({
           , plot.background = element_rect(fill = "transparent")
           , panel.grid.major = element_blank() # get rid of major grid
           , panel.grid.minor = element_blank() # get rid of minor grid
-          , legend.background = element_rect(fill = "transparent") # get rid of legend bg
-          , legend.box.background = element_rect(fill = "transparent")
-          , legend.title = element_text(colour="white", size=10, 
-                                       face="bold")
-          , legend.text = element_text(colour="white", size=10, 
-                                      face="bold")
-          , legend.key = element_rect(fill = "transparent", colour = "transparent")) +
+          , legend.position='none') +
     guides(colour = guide_legend(override.aes = list(shape=32)), fill=FALSE)
 }, bg="transparent")
 
+#this is the heatmap to look at lap times.
+#it uses a modified version of the heatmap.2 function, the modification makes the text white since there's no option for that in heatmap.2
 output$plot3 <- renderPlot({
   req(laptimes_drivers())
   
@@ -526,6 +522,8 @@ output$plot3 <- renderPlot({
             lwid=c(0.65,3.5)
   )
 }, bg="transparent")
+
+#this chunk closes the connection to the sqlite db
 session$onSessionEnded(function() {
   dbDisconnect(con)
 })
