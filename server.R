@@ -11,6 +11,7 @@ library(dplyr)
 library(tidyr)
 source('heatmap.2.R')
 library(emoGG)
+library(directlabels)
 
 #color mappings for constrcutor
 cols <- c(  
