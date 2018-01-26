@@ -6,6 +6,8 @@ library(ggplot2)
 library(emoGG)
 library(jsonlite)
 library(shinythemes)
+library(shinyjs)
+
 
 #this list will be input into the selectInput()
 drivers <- fromJSON("http://ergast.com/api/f1/drivers/.json?limit=2500")
@@ -38,14 +40,24 @@ CurrDrivers <- unlist(lapply(Currdriversresults, '[[', 1))
 #CurrDriverIDs <- unlist(lapply(Currdriversresults, '[[', 2))
 
 
-ui <- navbarPage(theme = shinytheme("superhero"),
+ui <- navbarPage(
+  id = "navbar",
+  selected = 'home',
+  header = tagList(
+    useShinyjs(),
+    extendShinyjs("www/app-shinyjs.js", functions = c("updateHistory"))
+  ),
+  tags$head(tags$style(".rightAlign{float:right;color:#999999;}")),
+  #tags$head(tags$script(src="maps.js")),
+  
+  theme = shinytheme("superhero"),
   title="Formula 1 Stats",
-    tabPanel("Driver Data",
-    tags$head(tags$style(".rightAlign{float:right;color:#999999;}")),
-    tags$head(tags$script(src="maps.js")),
+    tabPanel("Driver Data",value = "home",
+
     #headerPanel('Formula 1 Results'),
     mainPanel(
-      p(HTML("Created by <a href='http://www.jacobwarner.net'>Jake Warner</a>"), class = 'rightAlign'),
+      p(HTML("Created by <a href='http://www.jacobwarner.net'>Jake Warner</a>
+             <br>Data from the <a href='http://ergast.com/mrd/'>Ergast API</a>"), class = 'rightAlign'),
      #selectInput("driver", "Select a current driver", CurrDrivers, selected = NULL, multiple = FALSE,
       #            selectize = TRUE, width = NULL, size = NULL),
       checkboxInput("showonlycurrent","Limit to 2017 Drivers"),
@@ -63,7 +75,7 @@ ui <- navbarPage(theme = shinytheme("superhero"),
               tableOutput("table1"),
               width = 10)
     ),
-    tabPanel("Race Data",
+    tabPanel("Race Data",value = "races",
       selectInput("lap_season", "Select a season", c("2017"), selected = NULL, multiple = FALSE,
                  selectize = TRUE, width = NULL, size = NULL),
       selectInput("lap_race", "Select a race", c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20), selected = NULL, multiple = FALSE,

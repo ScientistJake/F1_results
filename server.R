@@ -12,6 +12,8 @@ library(tidyr)
 source('heatmap.2.R')
 library(emoGG)
 library(directlabels)
+library(shinyjs)
+
 
 #color mappings for constrcutor
 cols <- c(  
@@ -254,6 +256,13 @@ driver_lines <- c(
 )
 
 server <- function(input, output, session) {
+  
+  values <- reactiveValues(
+    
+    # variable to keep track of whether or not the tab switching is manual (by the
+    # user) or automatic (restoring the app's state on initialization or prev/next buttons)    
+    autoNavigating = 0
+  )
 
   #query the db to get the basic tables. we use these in various functions below
   con = dbConnect(RSQLite::SQLite(), dbname="ergast.sqlite")
@@ -528,4 +537,33 @@ output$plot3 <- renderPlot({
 session$onSessionEnded(function() {
   dbDisconnect(con)
 })
+
+# restore the Shiny app's state based on the URL
+restore <- function(qs) {
+  data <- parseQueryString(qs)
+
+  if (!is.null(data[['page']])) {
+    # navigation function
+    values$autoNavigating <- TRUE
+
+    # change to the correct tab
+    updateTabsetPanel(session, "navbar", data[['page']])
+  }
+}
+
+# when the user changes tabs, save the state in the URL
+observeEvent(input$navbar, {
+
+  if (values$autoNavigating == TRUE ) {
+    values$autoNavigating <- FALSE
+    return()
+  }
+  shinyjs::js$updateHistory(page = input$navbar)
+})
+
+# when the user clicks prev/next buttons in the browser, restore the state
+observeEvent(input$navigatedTo, {
+  restore(input$navigatedTo)
+})
+
 }
