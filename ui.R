@@ -60,7 +60,7 @@ ui <- navbarPage(
              <br>Data from the <a href='http://ergast.com/mrd/'>Ergast API</a>"), class = 'rightAlign'),
      #selectInput("driver", "Select a current driver", CurrDrivers, selected = NULL, multiple = FALSE,
       #            selectize = TRUE, width = NULL, size = NULL),
-      checkboxInput("showonlycurrent","Limit to 2017 Drivers"),
+      checkboxInput("showonlycurrent","Limit to current Drivers"),
       uiOutput("driverSelection"),
       sliderInput("date", label = h3("Filter by date"), 
                   min = as.Date("1950-01-01","%Y-%m-%d"),
@@ -76,7 +76,7 @@ ui <- navbarPage(
               width = 10)
     ),
     tabPanel("Race Data",value = "races",
-      selectInput("lap_season", "Select a season", c("2017"), selected = NULL, multiple = FALSE,
+      selectInput("lap_season", "Select a season", c("2017","2018"), selected = NULL, multiple = FALSE,
                  selectize = TRUE, width = NULL, size = NULL),
       selectInput("lap_race", "Select a race", c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20), selected = NULL, multiple = FALSE,
                   selectize = TRUE, width = NULL, size = NULL),

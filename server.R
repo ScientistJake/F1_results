@@ -10,7 +10,8 @@ library(RSQLite)
 library(dplyr)
 library(tidyr)
 source('heatmap.2.R')
-library(emoGG)
+#library(emoGG)
+source('geom_emoji.R')
 library(directlabels)
 library(shinyjs)
 
@@ -278,7 +279,7 @@ server <- function(input, output, session) {
   drivers$names = paste0(toupper(drivers$surname),", ",drivers$forename)
   
   #this gets the current drivers by calling the ergast api.
-  Currentdrivers <- fromJSON("http://ergast.com/api/f1/2017/drivers/.json?limit=2500")
+  Currentdrivers <- fromJSON("http://ergast.com/api/f1/2018/drivers/.json?limit=2500")
   parseCurrdrivers= data.frame(name=character())
   Currdriversresults <- lapply(1:as.numeric(Currentdrivers[[1]][6][1]), function(i){
     id <- Currentdrivers[[1]][[7]][[3]][[1]][i]
