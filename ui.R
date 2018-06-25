@@ -3,7 +3,6 @@ library(httr)
 library(XML)
 library(shiny)
 library(ggplot2)
-library(emoGG)
 library(jsonlite)
 library(shinythemes)
 library(shinyjs)
@@ -11,7 +10,7 @@ library(shinyjs)
 
 #this list will be input into the selectInput()
 drivers <- fromJSON("http://ergast.com/api/f1/drivers/.json?limit=2500")
-parsedrivers= data.frame(name=character())
+parsedrivers <- data.frame(name=character())
 alldriversresults <- lapply(1:as.numeric(drivers[[1]][6][1]), function(i){
   firstname <- drivers[[1]][[7]][[2]][[3]][i]
   lastname <- toupper(drivers[[1]][[7]][[2]][[4]][i])
@@ -76,7 +75,7 @@ ui <- navbarPage(
               width = 10)
     ),
     tabPanel("Race Data",value = "races",
-      selectInput("lap_season", "Select a season", c("2017","2018"), selected = NULL, multiple = FALSE,
+      selectInput("lap_season", "Select a season", c("2017","2018"), selected = "2018", multiple = FALSE,
                  selectize = TRUE, width = NULL, size = NULL),
       selectInput("lap_race", "Select a race", c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20), selected = NULL, multiple = FALSE,
                   selectize = TRUE, width = NULL, size = NULL),
